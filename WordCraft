@@ -1,0 +1,111 @@
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+
+const letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+const rules = [
+  "Has 5 or more letters",
+  "Is a noun",
+  "Ends with a vowel",
+  "Contains double letters",
+  "Starts and ends with the same letter",
+];
+
+export default function WordCraft() {
+  const [letter, setLetter] = useState("");
+  const [rule, setRule] = useState("");
+  const [word, setWord] = useState("");
+  const [message, setMessage] = useState("");
+  const [definition, setDefinition] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(null);
+
+  useEffect(() => {
+    if (timeLeft === 0) {
+      setMessage("⏳ Time's up! Try again.");
+      setTimeLeft(null);
+    }
+    if (!timeLeft) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  const drawCards = () => {
+    setLetter(letters[Math.floor(Math.random() * letters.length)]);
+    setRule(rules[Math.floor(Math.random() * rules.length)]);
+    setMessage("");
+    setWord("");
+    setDefinition(null);
+    setTimeLeft(20);
+  };
+
+  const fetchDefinition = async (word) => {
+    try {
+      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+      const data = await response.json();
+      if (data && data.length > 0) {
+        setDefinition({
+          meaning: data[0].meanings[0].definitions[0].definition,
+          example: data[0].meanings[0].definitions[0].example || "No example available."
+        });
+      } else {
+        setDefinition(null);
+      }
+    } catch (error) {
+      setDefinition(null);
+    }
+  };
+
+  const checkWord = () => {
+    if (timeLeft === null) return;
+    if (word.toUpperCase().startsWith(letter)) {
+      setMessage("✅ Looks good! Checking dictionary...");
+      fetchDefinition(word);
+    } else {
+      setMessage("❌ The word must start with " + letter);
+      setDefinition(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-4 p-6">
+      <h1 className="text-2xl font-bold">WordCraft</h1>
+      <Button onClick={drawCards}>Draw Cards</Button>
+      {letter && rule && (
+        <Card className="w-64 p-4 text-center">
+          <CardContent>
+            <p className="text-xl font-semibold">Start with: {letter}</p>
+            <p className="text-sm text-gray-600">Rule: {rule}</p>
+            <p className="text-lg font-bold mt-2">⏳ Time left: {timeLeft} sec</p>
+          </CardContent>
+        </Card>
+      )}
+      {letter && (
+        <div className="flex flex-col items-center gap-2">
+          <Input
+            type="text"
+            value={word}
+            onChange={(e) => setWord(e.target.value)}
+            placeholder="Enter your word"
+          />
+          <Button onClick={checkWord}>Check Word</Button>
+          {message && <p className="text-lg font-semibold">{message}</p>}
+          {definition && (
+            <Card className="w-64 p-4 text-center">
+              <CardContent>
+                <p className="text-md font-semibold">Definition:</p>
+                <p className="text-sm text-gray-600">{definition.meaning}</p>
+                <p className="text-md font-semibold mt-2">Example:</p>
+                <p className="text-sm text-gray-600">{definition.example}</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
